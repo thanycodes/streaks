@@ -82,3 +82,23 @@ describe("persistence", () => {
     expect(loadHabits(memoryStore({ [STORAGE_KEY]: '[{"name":5}]' }))).toEqual([]);
   });
 });
+
+describe("ids without a secure context", () => {
+  it("still creates unique ids when crypto.randomUUID is unavailable", () => {
+    // Phones loading the app over http://192.168.x.x have no randomUUID.
+    const original = crypto.randomUUID;
+    Object.defineProperty(crypto, "randomUUID", { value: undefined, configurable: true });
+    try {
+      const first = addHabit([], "Read", TODAY);
+      const second = first.ok ? addHabit(first.habits, "Walk", TODAY) : first;
+      expect(second.ok).toBe(true);
+      if (second.ok) {
+        const [a, b] = second.habits.map((h) => h.id);
+        expect(a).toBeTruthy();
+        expect(a).not.toBe(b);
+      }
+    } finally {
+      Object.defineProperty(crypto, "randomUUID", { value: original, configurable: true });
+    }
+  });
+});

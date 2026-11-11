@@ -7,7 +7,9 @@
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit",
     "build": "tsc --noEmit && vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "dev:phone": "HOST=1 vite",
+    "preview:phone": "vite build && vite preview --host"
   },
   "author": "",
   "license": "ISC",

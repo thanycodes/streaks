@@ -14,13 +14,19 @@ export type KeyValueStore = Pick<Storage, "getItem" | "setItem">;
 
 export const STORAGE_KEY = "streaks:v1";
 
+function makeId(): string {
+  // randomUUID only exists in secure contexts; a phone on http://192.168.x.x isn't one.
+  if (typeof crypto.randomUUID === "function") return crypto.randomUUID();
+  return Date.now().toString(36) + Math.random().toString(36).slice(2, 10);
+}
+
 export function addHabit(habits: readonly Habit[], rawName: string, today: DateKey): AddResult {
   const name = rawName.trim();
   if (!name) return { ok: false, error: "Name can't be empty." };
   if (habits.some((h) => h.name.toLowerCase() === name.toLowerCase())) {
     return { ok: false, error: "You already track that habit." };
   }
-  const habit: Habit = { id: crypto.randomUUID(), name, createdAt: today, done: [] };
+  const habit: Habit = { id: makeId(), name, createdAt: today, done: [] };
   return { ok: true, habits: [...habits, habit] };
 }
 
