@@ -3,6 +3,10 @@
 Guidance for AI agents (and humans) working in this repo. Read `PRD.md` first: it is the
 source of truth for scope. If a request conflicts with the PRD, flag it rather than guess.
 
+**Current phase: Mac app.** Read `MAC-APP-CONTEXT.md` before doing anything. It holds the plan,
+the open decisions and a working agreement: the user wants to be involved step by step, so
+explain each step and stop at its checkpoints instead of building autonomously.
+
 ## Commands
 
 - `npm run dev`: start the Vite dev server
