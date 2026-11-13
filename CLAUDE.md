@@ -31,6 +31,8 @@ The service worker is generated in `vite.config.ts` at build time. Don't hand-wr
 `public/sw.js`. It only registers in production builds, over HTTPS or localhost.
 
 Dates are always local `YYYY-MM-DD` strings. Never store `Date` objects or ISO timestamps.
+One exception (see `PRD-mac.md`): sync stores **change times** as epoch milliseconds, only to
+decide which of two changes is newer. Never display them or derive a date from them.
 
 ## Workflow
 

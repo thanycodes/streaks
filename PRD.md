@@ -35,6 +35,9 @@ for today, and see your current streak and best streak for each one. Data stays 
 Accounts and sync, reminders and notifications, editing past days beyond the 7-day view,
 weekly or "3x per week" goals, charts, and dark-mode toggles beyond following the OS setting.
 
+> **Update (2026-11-12):** sync between devices (still without accounts) and a Mac menu bar app
+> are now in scope. See `PRD-mac.md`.
+
 ## Implementation decisions
 
 - **Stack:** Vite + TypeScript (strict), no UI framework. The app is small enough that the plain DOM is clearer.
