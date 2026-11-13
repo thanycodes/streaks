@@ -109,13 +109,17 @@ receive a finished app. Claude should:
 
 ---
 
-## 6. Open decisions (settle these first in the new chat)
+## 6. Decisions (settled 2026-11-12)
 
-1. **Widget vs. menu bar**: true desktop widget (→ option 3, Swift) or menu bar popover (→ option 2, Tauri)?
-2. **Xcode** (option 3) or **Rust** (option 2): OK to install? For option 3, sign with your free Apple ID?
-3. **Widget content** (option 3): today's checklist with tap-to-check, streak counts, or both?
-4. **Data**: separate in v1, or export/import from day one?
-5. **Hosting** for the web/phone version (see §1). Can be decided independently.
+1. **Menu bar popover via Tauri (option 2).** No true desktop widget.
+2. **Rust install: OK.** Xcode isn't needed.
+3. Widget content: n/a (no widget).
+4. **Real phone ↔ Mac sync** via a Cloudflare Worker + secret sync code (no accounts). The user
+   also wants to learn how the cloud side works, so explain the Worker/KV parts as we go. Needs a
+   data format v2 with change times and tombstones, so un-checks and deletes sync.
+5. **Hosting: GitHub Pages.** The repo is now public.
+
+Work happens on branch `mac-app`. The spec is `PRD-mac.md`.
 
 ---
 
