@@ -1,11 +1,23 @@
 import { lastNDays, type DateKey } from "./dates";
-import { addHabit, deleteHabit, loadHabits, saveHabits, toggleDay, type Habit, type KeyValueStore } from "./store";
+import {
+  addHabit,
+  deleteHabit,
+  doneDays,
+  loadHabits,
+  saveHabits,
+  toggleDay,
+  visibleHabits,
+  type Habit,
+  type KeyValueStore,
+} from "./store";
 import { currentStreak, longestStreak } from "./streaks";
 
 export interface AppOptions {
   storage: KeyValueStore;
   /** Injected so tests (and the midnight rollover) control what "today" is. */
   today: () => DateKey;
+  /** Clock for change times (epoch ms). Injected for deterministic tests. */
+  now?: () => number;
 }
 
 const WEEKDAY = new Intl.DateTimeFormat(undefined, { weekday: "narrow" });
@@ -33,9 +45,10 @@ function plural(n: number, word: string) {
 }
 
 function renderHabit(habit: Habit, today: DateKey): HTMLElement {
-  const current = currentStreak(habit.done, today);
-  const best = longestStreak(habit.done);
-  const doneToday = habit.done.includes(today);
+  const done = doneDays(habit);
+  const current = currentStreak(done, today);
+  const best = longestStreak(done);
+  const doneToday = done.includes(today);
 
   const check = el("button", {
     className: "check",
@@ -47,18 +60,18 @@ function renderHabit(habit: Habit, today: DateKey): HTMLElement {
   check.setAttribute("aria-label", `${habit.name}: done today`);
 
   const dots = lastNDays(today, 7).map((day) => {
-    const done = habit.done.includes(day);
+    const isDone = done.includes(day);
     const date = keyToDate(day);
     const dot = el(
       "button",
       {
-        className: `dot${done ? " done" : ""}${day === today ? " today" : ""}`,
+        className: `dot${isDone ? " done" : ""}${day === today ? " today" : ""}`,
         title: LONG_DATE.format(date),
         dataset: { action: "toggle", id: habit.id, day, focus: `dot-${habit.id}-${day}` },
       },
       el("span", { className: "weekday", textContent: WEEKDAY.format(date) }),
     );
-    dot.setAttribute("aria-pressed", String(done));
+    dot.setAttribute("aria-pressed", String(isDone));
     dot.setAttribute("aria-label", `${habit.name}, ${LONG_DATE.format(date)}`);
     return dot;
   });
@@ -91,7 +104,7 @@ function renderHabit(habit: Habit, today: DateKey): HTMLElement {
   );
 }
 
-export function createApp(root: HTMLElement, { storage, today }: AppOptions) {
+export function createApp(root: HTMLElement, { storage, today, now = Date.now }: AppOptions) {
   let habits = loadHabits(storage);
   let error = "";
 
@@ -124,15 +137,16 @@ export function createApp(root: HTMLElement, { storage, today }: AppOptions) {
     const day = today();
     const focusKey = (document.activeElement as HTMLElement | null)?.dataset?.focus;
 
-    const doneCount = habits.filter((h) => h.done.includes(day)).length;
-    summary.textContent = habits.length
-      ? `${LONG_DATE.format(keyToDate(day))} · ${doneCount}/${habits.length} done today`
+    const shown = visibleHabits(habits);
+    const doneCount = shown.filter((h) => h.days[day]?.done).length;
+    summary.textContent = shown.length
+      ? `${LONG_DATE.format(keyToDate(day))} · ${doneCount}/${shown.length} done today`
       : LONG_DATE.format(keyToDate(day));
     errorLine.textContent = error;
 
     list.replaceChildren(
-      ...(habits.length
-        ? habits.map((h) => renderHabit(h, day))
+      ...(shown.length
+        ? shown.map((h) => renderHabit(h, day))
         : [el("li", { className: "empty", textContent: "No habits yet. Add one above to start a streak." })]),
     );
 
@@ -141,7 +155,7 @@ export function createApp(root: HTMLElement, { storage, today }: AppOptions) {
 
   form.addEventListener("submit", (event) => {
     event.preventDefault();
-    const result = addHabit(habits, input.value, today());
+    const result = addHabit(habits, input.value, today(), now());
     if (result.ok) {
       error = "";
       input.value = "";
@@ -164,7 +178,7 @@ export function createApp(root: HTMLElement, { storage, today }: AppOptions) {
     if (!button) return;
     const { action, id, day } = button.dataset;
     if (!id) return;
-    if (action === "toggle" && day) update(toggleDay(habits, id, day));
+    if (action === "toggle" && day) update(toggleDay(habits, id, day, now()));
     if (action === "delete") {
       const habit = habits.find((h) => h.id === id);
       if (habit && confirm(`Delete "${habit.name}" and its history?`)) update(deleteHabit(habits, id));
