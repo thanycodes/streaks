@@ -18,6 +18,8 @@ export interface AppOptions {
   today: () => DateKey;
   /** Clock for change times (epoch ms). Injected for deterministic tests. */
   now?: () => number;
+  /** Called after every change the *user* makes (not after sync applies data). */
+  onChange?: (habits: Habit[]) => void;
 }
 
 const WEEKDAY = new Intl.DateTimeFormat(undefined, { weekday: "narrow" });
@@ -104,7 +106,7 @@ function renderHabit(habit: Habit, today: DateKey): HTMLElement {
   );
 }
 
-export function createApp(root: HTMLElement, { storage, today, now = Date.now }: AppOptions) {
+export function createApp(root: HTMLElement, { storage, today, now = Date.now, onChange }: AppOptions) {
   let habits = loadHabits(storage);
   let error = "";
 
@@ -127,10 +129,15 @@ export function createApp(root: HTMLElement, { storage, today, now = Date.now }:
     list,
   );
 
-  function update(next: Habit[]) {
+  function replaceHabits(next: Habit[]) {
     habits = next;
     saveHabits(storage, habits);
     render();
+  }
+
+  function update(next: Habit[]) {
+    replaceHabits(next);
+    onChange?.(habits);
   }
 
   function render() {
@@ -186,5 +193,5 @@ export function createApp(root: HTMLElement, { storage, today, now = Date.now }:
   });
 
   render();
-  return { render };
+  return { render, habits: () => habits, replaceHabits };
 }
