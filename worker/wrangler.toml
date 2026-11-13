@@ -1,0 +1,10 @@
+# Cloudflare Worker that stores and merges synced habit data.
+# Deploy steps are in worker/README.md.
+name = "streaks-sync"
+main = "src/index.ts"
+compatibility_date = "2025-09-01"
+
+[[kv_namespaces]]
+binding = "STREAKS"
+# Replace with the id printed by: npx wrangler kv namespace create STREAKS
+id = "REPLACE_WITH_YOUR_KV_NAMESPACE_ID"

@@ -11,5 +11,5 @@
     "skipLibCheck": true,
     "types": ["vitest/globals", "vite/client"]
   },
-  "include": ["src"]
+  "include": ["src", "worker/src"]
 }

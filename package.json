@@ -9,7 +9,9 @@
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
     "dev:phone": "HOST=1 vite",
-    "preview:phone": "vite build && vite preview --host"
+    "preview:phone": "vite build && vite preview --host",
+    "worker:dev": "wrangler dev -c worker/wrangler.toml",
+    "worker:deploy": "wrangler deploy -c worker/wrangler.toml"
   },
   "author": "",
   "license": "ISC",
@@ -18,7 +20,8 @@
     "jsdom": "^25.0.1",
     "typescript": "^5.9.3",
     "vite": "^6.4.6",
-    "vitest": "^3.2.7"
+    "vitest": "^3.2.7",
+    "wrangler": "^4.162.0"
   },
   "private": true,
   "type": "module"
