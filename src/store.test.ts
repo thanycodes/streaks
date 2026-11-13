@@ -97,13 +97,8 @@ describe("views", () => {
     expect(doneDays(h)).toEqual(["2026-11-08", "2026-11-10"]);
   });
 
-  it("visibleHabits hides tombstones and merged copies, ordered by when they were added", () => {
-    const habits = [
-      habit("B", [], { addedAt: 2 }),
-      habit("A", [], { addedAt: 1 }),
-      habit("Gone", [], { deleted: true }),
-      habit("Copy", [], { mergedInto: "A" }),
-    ];
+  it("visibleHabits hides tombstones, ordered by when habits were added", () => {
+    const habits = [habit("B", [], { addedAt: 2 }), habit("A", [], { addedAt: 1 }), habit("Gone", [], { deleted: true })];
     expect(visibleHabits(habits).map((h) => h.name)).toEqual(["A", "B"]);
   });
 });
@@ -167,7 +162,7 @@ describe("parseHabits", () => {
     expect(parseHabits([habit("Read", [TODAY])])).toHaveLength(1);
     expect(parseHabits({})).toBeNull();
     expect(parseHabits([{ ...habit("Read"), days: { [TODAY]: { done: "yes", at: 1 } } }])).toBeNull();
-    expect(parseHabits([{ ...habit("Read"), mergedInto: 3 }])).toBeNull();
+    expect(parseHabits([{ ...habit("Read"), deleted: "no" }])).toBeNull();
   });
 });
 

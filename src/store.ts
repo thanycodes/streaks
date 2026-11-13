@@ -1,4 +1,5 @@
 import type { DateKey } from "./dates";
+import { mergeDays, newer } from "./merge";
 
 /** Whether a day was done, and the change time (epoch ms) that set it. */
 export interface DayMark {
@@ -15,8 +16,6 @@ export interface Habit {
   days: Record<DateKey, DayMark>;
   /** Tombstone: kept (hidden) so the delete reaches other devices. */
   deleted?: true;
-  /** Set when a merge folded this habit into a same-named one. */
-  mergedInto?: string;
 }
 
 export type AddResult = { ok: true; habits: Habit[] } | { ok: false; error: string };
@@ -33,30 +32,49 @@ function makeId(): string {
   return Date.now().toString(36) + Math.random().toString(36).slice(2, 10);
 }
 
-export function isVisible(habit: Habit): boolean {
-  return !habit.deleted && habit.mergedInto === undefined;
-}
-
 export function compareByAdded(a: Habit, b: Habit): number {
   return a.addedAt - b.addedAt || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
-}
-
-export function visibleHabits(habits: readonly Habit[]): Habit[] {
-  return habits.filter(isVisible).sort(compareByAdded);
-}
-
-export function doneDays(habit: Habit): DateKey[] {
-  return Object.keys(habit.days).filter((day) => habit.days[day].done).sort();
 }
 
 export function sameName(a: string, b: string): boolean {
   return a.toLowerCase() === b.toLowerCase();
 }
 
+function liveHabits(habits: readonly Habit[]): Habit[] {
+  return habits.filter((h) => !h.deleted);
+}
+
+/** All live habits sharing this habit's name: two devices may each have added "Read" offline. */
+function sameNamed(habits: readonly Habit[], habit: Habit): Habit[] {
+  return liveHabits(habits).filter((h) => sameName(h.name, habit.name));
+}
+
+/**
+ * What the user sees: tombstones hidden, and same-named habits shown as one habit
+ * (the one added first) with the newest mark for each day across all copies.
+ */
+export function visibleHabits(habits: readonly Habit[]): Habit[] {
+  const groups = new Map<string, Habit[]>();
+  for (const habit of liveHabits(habits)) {
+    const key = habit.name.toLowerCase();
+    groups.set(key, [...(groups.get(key) ?? []), habit]);
+  }
+  return [...groups.values()]
+    .map((group) => {
+      const [first, ...rest] = [...group].sort(compareByAdded);
+      return { ...first, days: rest.reduce((days, h) => mergeDays(days, h.days), first.days) };
+    })
+    .sort(compareByAdded);
+}
+
+export function doneDays(habit: Habit): DateKey[] {
+  return Object.keys(habit.days).filter((day) => habit.days[day].done).sort();
+}
+
 export function addHabit(habits: readonly Habit[], rawName: string, today: DateKey, now: number): AddResult {
   const name = rawName.trim();
   if (!name) return { ok: false, error: "Name can't be empty." };
-  if (habits.some((h) => isVisible(h) && sameName(h.name, name))) {
+  if (liveHabits(habits).some((h) => sameName(h.name, name))) {
     return { ok: false, error: "You already track that habit." };
   }
   const habit: Habit = { id: makeId(), name, createdAt: today, addedAt: now, days: {} };
@@ -64,17 +82,21 @@ export function addHabit(habits: readonly Habit[], rawName: string, today: DateK
 }
 
 export function toggleDay(habits: readonly Habit[], id: string, day: DateKey, now: number): Habit[] {
-  return habits.map((h) => {
-    if (h.id !== id) return h;
-    const previous = h.days[day];
-    // A local change must beat the one it replaces, even if this device's clock jumped back.
-    const at = previous && previous.at >= now ? previous.at + 1 : now;
-    return { ...h, days: { ...h.days, [day]: { done: !previous?.done, at } } };
-  });
+  const target = habits.find((h) => h.id === id);
+  if (!target) return [...habits];
+  const marks = sameNamed(habits, target).map((h) => h.days[day]).filter((m) => m !== undefined);
+  const previous = marks.length ? marks.reduce(newer) : undefined;
+  // A local change must beat the one it replaces, even if this device's clock jumped back.
+  const at = previous && previous.at >= now ? previous.at + 1 : now;
+  return habits.map((h) => (h.id === id ? { ...h, days: { ...h.days, [day]: { done: !previous?.done, at } } } : h));
 }
 
+/** Deletes the habit and any same-named copies, so the combined habit doesn't reappear. */
 export function deleteHabit(habits: readonly Habit[], id: string): Habit[] {
-  return habits.map((h) => (h.id === id ? { ...h, deleted: true } : h));
+  const target = habits.find((h) => h.id === id);
+  if (!target) return [...habits];
+  const doomed = new Set(sameNamed(habits, target).map((h) => h.id).concat(id));
+  return habits.map((h) => (doomed.has(h.id) ? { ...h, deleted: true } : h));
 }
 
 function isDayMark(value: unknown): value is DayMark {
@@ -90,8 +112,7 @@ function isHabit(value: unknown): value is Habit {
     typeof h.createdAt === "string" && typeof h.addedAt === "number" &&
     typeof h.days === "object" && h.days !== null && !Array.isArray(h.days) &&
     Object.values(h.days).every(isDayMark) &&
-    (h.deleted === undefined || h.deleted === true) &&
-    (h.mergedInto === undefined || typeof h.mergedInto === "string")
+    (h.deleted === undefined || h.deleted === true)
   );
 }
 
