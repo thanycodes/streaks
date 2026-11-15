@@ -10,6 +10,8 @@
     "preview": "vite preview",
     "dev:phone": "HOST=1 vite",
     "preview:phone": "vite build && vite preview --host",
+    "mac:dev": "PATH=\"$HOME/.cargo/bin:$PATH\" tauri dev",
+    "mac:build": "PATH=\"$HOME/.cargo/bin:$PATH\" tauri build",
     "worker:dev": "wrangler dev -c worker/wrangler.toml",
     "worker:deploy": "wrangler deploy -c worker/wrangler.toml"
   },

@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { createDesktopSettings, isDesktop } from "./desktop";
+import { createDesktopSettings, hideOnEscape, isDesktop } from "./desktop";
 
 function setup(initial: boolean, failSet = false) {
   const calls: boolean[] = [];
@@ -48,4 +48,34 @@ it("puts the switch back and says so if the change fails", async () => {
 
 it("mentions the keyboard shortcut", () => {
   expect(setup(false).root.textContent).toContain("⌃⌥S");
+});
+
+describe("hideOnEscape", () => {
+  function press(target: EventTarget) {
+    target.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+  }
+
+  it("hides the popover when Escape is pressed", () => {
+    let hidden = 0;
+    hideOnEscape(document, () => hidden++);
+    press(document.body);
+    expect(hidden).toBe(1);
+  });
+
+  it("ignores other keys", () => {
+    let hidden = 0;
+    hideOnEscape(document, () => hidden++);
+    document.body.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+    expect(hidden).toBe(0);
+  });
+
+  it("leaves Escape alone when the app already used it (e.g. to cancel a delete)", () => {
+    let hidden = 0;
+    const inner = document.createElement("div");
+    document.body.replaceChildren(inner);
+    inner.addEventListener("keydown", (event) => event.stopPropagation());
+    hideOnEscape(document, () => hidden++);
+    press(inner);
+    expect(hidden).toBe(0);
+  });
 });

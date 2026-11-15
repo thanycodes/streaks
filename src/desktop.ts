@@ -58,3 +58,12 @@ export function createDesktopSettings(root: HTMLElement, bridge: Pick<DesktopBri
 
   return { ready };
 }
+
+/** Escape closes the popover, like a menu. The app stops the event when it used Escape itself. */
+export function hideOnEscape(target: EventTarget, hide: () => void): () => void {
+  const onKey = (event: Event) => {
+    if ((event as KeyboardEvent).key === "Escape") hide();
+  };
+  target.addEventListener("keydown", onKey);
+  return () => target.removeEventListener("keydown", onKey);
+}
