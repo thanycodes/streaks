@@ -15,6 +15,7 @@ explain each step and stop at its checkpoints instead of building autonomously.
 - `npm run build`: typecheck + production build to `dist/`
 - `npm run dev:phone`: dev server on the LAN, for testing on a phone
 - `npm run preview:phone`: production build served on the LAN
+- `npm run mac:dev` / `npm run mac:build`: run or bundle the Mac menu bar app (needs Rust)
 
 Before every commit, run `npm test && npm run build`. Both must pass.
 
@@ -26,6 +27,8 @@ Before every commit, run `npm test && npm run build`. Both must pass.
   Tests use an in-memory fake, never real `localStorage`.
 - `src/ui.ts`, `src/main.ts`: DOM only. Keep logic out of here. If you're about to write
   an `if` about streaks in the UI, it belongs in `streaks.ts`.
+- `mac/`: Tauri shell in Rust. It only hosts the web app; no habit logic there. The page talks
+  to it through `src/desktop.ts`, which does nothing outside the Mac app (`isDesktop()`).
 
 The service worker is generated in `vite.config.ts` at build time. Don't hand-write
 `public/sw.js`. It only registers in production builds, over HTTPS or localhost.
