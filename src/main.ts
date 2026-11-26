@@ -1,4 +1,5 @@
 import { toDateKey } from "./dates";
+import { createDesktopSettings, hideOnEscape, isDesktop, loadDesktopBridge } from "./desktop";
 import { createSyncer, httpTransport } from "./sync";
 import { createSyncPanel } from "./syncPanel";
 import { createApp } from "./ui";
@@ -40,7 +41,20 @@ setInterval(() => {
 }, SYNC_EVERY_MS);
 void syncer.syncNow();
 
-// Offline support. Only in production builds; in dev it would cache stale modules.
-if (import.meta.env.PROD && "serviceWorker" in navigator) {
+if (isDesktop()) void setUpDesktop();
+
+async function setUpDesktop() {
+  const bridge = await loadDesktopBridge();
+  const settingsRoot = document.createElement("section");
+  settingsRoot.className = "desktop";
+  settingsRoot.setAttribute("aria-label", "Mac app");
+  document.querySelector("#app")!.append(settingsRoot);
+  createDesktopSettings(settingsRoot, bridge);
+  hideOnEscape(document, () => void bridge.hidePopover());
+}
+
+// Offline support for the phone. Only in production builds (in dev it would cache stale
+// modules), and not in the Mac app, which ships its files inside the app bundle.
+if (import.meta.env.PROD && !isDesktop() && "serviceWorker" in navigator) {
   navigator.serviceWorker.register("./sw.js").catch(() => {});
 }

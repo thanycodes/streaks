@@ -42,11 +42,18 @@ function el<K extends keyof HTMLElementTagNameMap>(
   return node;
 }
 
+/** Decorative text that screen readers should skip. */
+function hidden(text: string): HTMLElement {
+  const span = el("span", { textContent: text });
+  span.setAttribute("aria-hidden", "true");
+  return span;
+}
+
 function plural(n: number, word: string) {
   return `${n} ${word}${n === 1 ? "" : "s"}`;
 }
 
-function renderHabit(habit: Habit, today: DateKey): HTMLElement {
+function renderHabit(habit: Habit, today: DateKey, confirmingDelete: boolean): HTMLElement {
   const done = doneDays(habit);
   const current = currentStreak(done, today);
   const best = longestStreak(done);
@@ -59,7 +66,7 @@ function renderHabit(habit: Habit, today: DateKey): HTMLElement {
     dataset: { action: "toggle", id: habit.id, day: today, focus: `check-${habit.id}` },
   });
   check.setAttribute("aria-pressed", String(doneToday));
-  check.setAttribute("aria-label", `${habit.name}: done today`);
+  check.setAttribute("aria-label", `${habit.name}: ${doneToday ? "done" : "not done"} today`);
 
   const dots = lastNDays(today, 7).map((day) => {
     const isDone = done.includes(day);
@@ -74,17 +81,21 @@ function renderHabit(habit: Habit, today: DateKey): HTMLElement {
       el("span", { className: "weekday", textContent: WEEKDAY.format(date) }),
     );
     dot.setAttribute("aria-pressed", String(isDone));
-    dot.setAttribute("aria-label", `${habit.name}, ${LONG_DATE.format(date)}`);
+    dot.setAttribute("aria-label", `${habit.name}, ${LONG_DATE.format(date)}: ${isDone ? "done" : "not done"}`);
     return dot;
   });
 
+  // Two clicks instead of confirm(): Tauri's webview doesn't reliably show browser dialogs.
   const remove = el("button", {
-    className: "delete",
-    textContent: "×",
-    title: "Delete habit",
-    dataset: { action: "delete", id: habit.id },
+    className: `delete${confirmingDelete ? " confirming" : ""}`,
+    textContent: confirmingDelete ? "Delete?" : "×",
+    title: confirmingDelete ? "Click again to delete" : "Delete habit",
+    dataset: { action: "delete", id: habit.id, focus: `delete-${habit.id}` },
   });
-  remove.setAttribute("aria-label", `Delete ${habit.name}`);
+  remove.setAttribute(
+    "aria-label",
+    confirmingDelete ? `Confirm: delete ${habit.name} and its history` : `Delete ${habit.name}`,
+  );
 
   return el(
     "li",
@@ -97,11 +108,17 @@ function renderHabit(habit: Habit, today: DateKey): HTMLElement {
       el(
         "div",
         { className: "stats" },
-        el("span", { className: `streak${current > 0 ? " hot" : ""}`, textContent: `🔥 ${plural(current, "day")}` }),
+        el(
+          "span",
+          { className: `streak${current > 0 ? " hot" : ""}` },
+          hidden("🔥 "),
+          el("span", { className: "sr-only", textContent: "Current streak: " }),
+          plural(current, "day"),
+        ),
         el("span", { className: "best", textContent: `Best ${best}` }),
       ),
     ),
-    el("div", { className: "week", role: "group", ariaLabel: "Last 7 days" }, ...dots),
+    el("div", { className: "week", role: "group", ariaLabel: `${habit.name}, last 7 days` }, ...dots),
     remove,
   );
 }
@@ -109,6 +126,7 @@ function renderHabit(habit: Habit, today: DateKey): HTMLElement {
 export function createApp(root: HTMLElement, { storage, today, now = Date.now, onChange }: AppOptions) {
   let habits = loadHabits(storage);
   let error = "";
+  let confirmingDelete: string | null = null;
 
   const input = el("input", {
     id: "new-habit",
@@ -120,7 +138,7 @@ export function createApp(root: HTMLElement, { storage, today, now = Date.now, o
   const form = el("form", { className: "add" }, input, el("button", { type: "submit", textContent: "Add" }));
   const errorLine = el("p", { className: "error", role: "alert" });
   const list = el("ul", { className: "habits" });
-  const summary = el("p", { className: "summary" });
+  const summary = el("p", { className: "summary", role: "status" });
 
   root.replaceChildren(
     el("header", {}, el("h1", { textContent: "Streaks" }), summary),
@@ -153,7 +171,7 @@ export function createApp(root: HTMLElement, { storage, today, now = Date.now, o
 
     list.replaceChildren(
       ...(shown.length
-        ? shown.map((h) => renderHabit(h, day))
+        ? shown.map((h) => renderHabit(h, day, h.id === confirmingDelete))
         : [el("li", { className: "empty", textContent: "No habits yet. Add one above to start a streak." })]),
     );
 
@@ -185,10 +203,23 @@ export function createApp(root: HTMLElement, { storage, today, now = Date.now, o
     if (!button) return;
     const { action, id, day } = button.dataset;
     if (!id) return;
+    const wasConfirming = confirmingDelete;
+    confirmingDelete = null;
     if (action === "toggle" && day) update(toggleDay(habits, id, day, now()));
     if (action === "delete") {
-      const habit = habits.find((h) => h.id === id);
-      if (habit && confirm(`Delete "${habit.name}" and its history?`)) update(deleteHabit(habits, id));
+      if (wasConfirming === id) update(deleteHabit(habits, id));
+      else {
+        confirmingDelete = id;
+        render();
+      }
+    }
+  });
+
+  root.addEventListener("keydown", (event) => {
+    if (event.key === "Escape" && confirmingDelete) {
+      confirmingDelete = null;
+      render();
+      event.stopPropagation(); // the Mac app closes the popover on Escape otherwise
     }
   });
 

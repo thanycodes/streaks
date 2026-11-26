@@ -1,5 +1,9 @@
 # Mac App: Context & Plan (handoff)
 
+> **Status 2026-11-14: all planned issues built (#7–#16).** Hosting is live, sync is built and
+> tested but the Worker isn't deployed yet (`worker/README.md`), and the Mac app builds and runs.
+> What's left is a hands-on check of the Mac app on screen and deploying the Worker.
+>
 > **Start here in a new chat.** Everything we discussed and decided while planning the Mac
 > version of Streaks. Last updated 2026-11-12.
 >

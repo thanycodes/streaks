@@ -63,10 +63,63 @@ it("renders 7 day dots with today last", () => {
   expect(dots[0].dataset.day).toBe("2026-11-05");
 });
 
-it("deletes after confirmation", () => {
-  const { root, add } = setup();
-  add("Walk");
-  globalThis.confirm = () => true;
-  root.querySelector<HTMLButtonElement>(".delete")!.click();
-  expect(root.querySelectorAll(".habit")).toHaveLength(0);
+describe("deleting", () => {
+  it("asks for a second click instead of a browser dialog", () => {
+    const { root, add } = setup();
+    add("Walk");
+    const remove = () => root.querySelector<HTMLButtonElement>(".delete")!;
+    remove().click();
+    expect(root.querySelectorAll(".habit")).toHaveLength(1);
+    expect(remove().getAttribute("aria-label")).toBe("Confirm: delete Walk and its history");
+    remove().click();
+    expect(root.querySelectorAll(".habit")).toHaveLength(0);
+  });
+
+  it("cancels the pending delete with Escape", () => {
+    const { root, add } = setup();
+    add("Walk");
+    root.querySelector<HTMLButtonElement>(".delete")!.click();
+    root.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+    expect(root.querySelector(".delete")?.getAttribute("aria-label")).toBe("Delete Walk");
+  });
+
+  it("cancels the pending delete when something else is clicked", () => {
+    const { root, add } = setup();
+    add("Walk");
+    root.querySelector<HTMLButtonElement>(".delete")!.click();
+    root.querySelector<HTMLButtonElement>(".check")!.click();
+    expect(root.querySelector(".delete")?.getAttribute("aria-label")).toBe("Delete Walk");
+  });
+});
+
+describe("screen reader labels", () => {
+  it("say the habit, the day and whether it's done", () => {
+    const { root, add } = setup();
+    add("Stretch");
+    const check = () => root.querySelector(".check")!;
+    expect(check().getAttribute("aria-label")).toBe("Stretch: not done today");
+    root.querySelector<HTMLButtonElement>(".check")!.click();
+    expect(check().getAttribute("aria-label")).toBe("Stretch: done today");
+    const lastDot = [...root.querySelectorAll(".dot")].at(-1)!;
+    expect(lastDot.getAttribute("aria-label")).toMatch(/^Stretch, .+: done$/);
+  });
+
+  it("read streaks as words, not emoji", () => {
+    const { root, add } = setup();
+    add("Stretch");
+    const streak = root.querySelector(".streak")!;
+    expect(streak.querySelector('[aria-hidden="true"]')?.textContent).toContain("🔥");
+    expect(streak.querySelector(".sr-only")?.textContent).toBe("Current streak: ");
+  });
+
+  it("announce today's progress as it changes", () => {
+    const { root } = setup();
+    expect(root.querySelector(".summary")?.getAttribute("role")).toBe("status");
+  });
+
+  it("name each 7-day row after its habit", () => {
+    const { root, add } = setup();
+    add("Walk");
+    expect(root.querySelector(".week")?.getAttribute("aria-label")).toBe("Walk, last 7 days");
+  });
 });

@@ -23,6 +23,21 @@ Offline mode and "Add to Home Screen" need HTTPS, so they only kick in once the 
 deployed (for example GitHub Pages or Netlify). Over plain LAN HTTP the app works but
 won't cache itself.
 
+### On the Mac (menu bar app)
+
+A flame icon in the menu bar opens Streaks in a small popover. ⌃⌥S (Control-Option-S) opens
+or closes it from any app, Escape or a click elsewhere closes it, and right-clicking the icon
+gives you Quit. It stays out of the Dock and can start at login (switch at the bottom of the
+popover, off by default). Needs Rust (`curl https://sh.rustup.rs -sSf | sh`).
+
+```bash
+npm run mac:dev      # run it with live reload
+npm run mac:build    # mac/target/release/bundle/macos/Streaks.app, drag it into Applications
+```
+
+With sync: `VITE_SYNC_URL=https://streaks-sync.<you>.workers.dev npm run mac:build`
+(see `worker/README.md`).
+
 ## How it's built
 
 | File | Role |
@@ -30,7 +45,12 @@ won't cache itself.
 | `src/dates.ts` | Pure local-date helpers (`YYYY-MM-DD`, no time zones) |
 | `src/streaks.ts` | Pure current/longest streak rules |
 | `src/store.ts` | Add / toggle / delete + validated `localStorage` persistence |
+| `src/merge.ts` | Pure merge of two copies of the data (newest change wins) |
+| `src/sync.ts`, `src/syncPanel.ts` | Sync with the Worker, and its on-screen panel |
 | `src/ui.ts` | DOM rendering and events; no business logic |
+| `src/desktop.ts` | Bridge to the Mac shell, shown only inside the Mac app |
+| `mac/` | Tauri shell (Rust): menu bar icon, popover, ⌃⌥S, start at login |
+| `worker/` | Cloudflare Worker that stores and merges synced data |
 | `vite.config.ts` | Generates the offline service worker at build time |
 
 ## How this project was made
